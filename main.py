@@ -1,39 +1,46 @@
-import asyncio
-import os
-from aiogram import Bot, Dispatcher, F
-from aiogram.types import Message, ContentType
-from aiogram.filters import Command
-from github import Github
+import telebot
+import sys
+import io
+import contextlib
 
-# Bilgilerini buraya tırnak içine yaz
-TOKEN = "8496541294:AAEhBOchcIYio75aMtRMPObMzt2gjBa-eRg"
-GITHUB_TOKEN = "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"
+# Buraya kendi bot tokenını yapıştır
+TOKEN = "8200931811:AAGNfRjoSzenGynnlWOZFHDc48UhEHcOSeQ"
+bot = telebot.TeleBot(TOKEN)
 
-bot = Bot(token=TOKEN)
-dp = Dispatcher()
-g = Github(GITHUB_TOKEN)
+@bot.message_handler(commands=['start'])
+def start(message):
+    bot.reply_to(message, "🐍 Python Kod Yürütücüye Hoş Geldiniz!\n\nÇalıştırmak istediğiniz kodu direkt mesaj olarak gönderin.")
 
-@dp.message(Command("start"))
-async def start(m: Message):
-    await m.answer("🌐 **Dosyadan Site Yapan Bot Aktif!**\n\nBana bir `.html` veya `.php` dosyası gönder, anında internet sitesine dönüştüreyim!")
-
-# HEM METİN HEM DOSYA OKUYAN FONKSİYON
-@dp.message(F.document | F.text)
-async def handle_content(m: Message):
-    html_content = ""
+@bot.message_handler(func=lambda message: True)
+def execute_python(message):
+    code = message.text
     
-    # Eğer dosya (document) gönderildiyse
-    if m.document:
-        if m.document.file_name.endswith(('.html', '.php')):
-            msg = await m.answer("📥 Dosya indiriliyor ve siteye yükleniyor...")
-            file = await bot.get_file(m.document.file_id)
-            file_path = await bot.download_file(file.file_path)
-            html_content = file_path.read().decode("utf-8")
+    # Çıktıyı yakalamak için io nesnesi kullanıyoruz
+    output_buffer = io.StringIO()
+    
+    bot.send_chat_action(message.chat.id, 'typing')
+    
+    try:
+        # Kodun çıktısını (print) yakalamak için redirect_stdout kullanıyoruz
+        with contextlib.redirect_stdout(output_buffer):
+            # Kodu yürüt
+            # Not: Gerçekten çalıştırması için exec() kullanıyoruz
+            exec(code, {'__builtins__': __builtins__}, {})
+        
+        result = output_buffer.getvalue()
+        
+        if result:
+            bot.reply_to(message, f"📤 **Çıktı:**\n\n```python\n{result}\n```", parse_mode="Markdown")
         else:
-            return await m.answer("⚠️ Lütfen sadece .html veya .php uzantılı dosya gönderin.")
-    
-    # Eğer metin olarak kod gönderildiyse
-    elif m.text and "<html>" in m.text.lower():
+            bot.reply_to(message, "✅ Kod başarıyla çalıştırıldı (Herhangi bir çıktı/print üretilmedi).")
+            
+    except Exception as e:
+        # Hata oluşursa hatayı kullanıcıya gönder
+        bot.reply_to(message, f"❌ **Hata Oluştu:**\n\n```text\n{str(e)}\n```", parse_mode="Markdown")
+
+if __name__ == "__main__":
+    print("Bot başlatıldı...")
+    bot.polling(none_stop=True)
         msg = await m.answer("⏳ Kodun siteye dönüştürülüyor...")
         html_content = m.text
     else:
@@ -65,4 +72,4 @@ async def main():
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(mtokenınını
