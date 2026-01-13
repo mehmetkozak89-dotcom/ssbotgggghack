@@ -7,7 +7,7 @@ from github import Github
 
 # Bilgilerini buraya tırnak içine yaz
 TOKEN = "8496541294:AAEhBOchcIYio75aMtRMPObMzt2gjBa-eRg"
-GITHUB_TOKEN = "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"
+GITHUB_TOKEN = "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"
 
 bot = Bot(token=TOKEN)
 dp = Dispatcher()
