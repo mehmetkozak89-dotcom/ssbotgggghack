@@ -6,7 +6,7 @@ from aiogram.filters import Command
 from github import Github
 
 # Bilgilerini buraya tırnak içine yaz
-TOKEN = "8200931811:AAGNfRjoSzenGynnlWOZFHDc48UhEHcOSeQ"
+TOKEN = "8496541294:AAEhBOchcIYio75aMtRMPObMzt2gjBa-eRg"
 GITHUB_TOKEN = "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"
 
 bot = Bot(token=TOKEN)
